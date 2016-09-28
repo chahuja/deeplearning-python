@@ -3,7 +3,7 @@
 
 # # BackProb in Multilayer Perceptron NN
 
-# In[1]:
+# In[ ]:
 
 import seaborn as sb
 import numpy as np
@@ -17,7 +17,8 @@ import sys
 import os
 
 
-# In[2]:
+
+# In[ ]:
 
 # Load Data
 np.random.RandomState(212)
@@ -27,7 +28,7 @@ test = np.matrix(np.genfromtxt('digitstest.txt', delimiter=','))
 val = np.matrix(np.genfromtxt('digitsvalid.txt', delimiter=','))
 
 
-# In[3]:
+# In[ ]:
 
 # Prepare data for training, validation and testing
 NUM_CLASSES = 10 ## hardcoded
@@ -47,7 +48,7 @@ val = val[:,:-1]
 
 # ## Plotting Image of a training input
 
-# In[4]:
+# In[ ]:
 
 # Plotting the image 
 ## The data is in row-major format
@@ -56,7 +57,7 @@ def plot_image(train):
 ## The image is squeezed row-wise
 
 
-# In[5]:
+# In[ ]:
 
 # Basic loss/activation functions and their gradients which are codenamed "inv"
 # These functions are defined with input as numpy.matrix format.
@@ -122,12 +123,15 @@ def copy_list(a):
 
 # ## Visualization
 
-# In[6]:
+# In[ ]:
 
 ## Visualizing filters
 def vis(model, save_name):
-  gs = gridspec.GridSpec(10,10,top=1., bottom=0., right=1., left=0., hspace=0., wspace=0.)
-  for g,count in zip(gs,range(100)):
+  dim = model.weights[0].shape[1]
+  n_image_rows = int(np.ceil(np.sqrt(dim)))
+  n_image_cols = int(np.ceil(dim * 1.0/n_image_rows))
+  gs = gridspec.GridSpec(n_image_rows,n_image_cols,top=1., bottom=0., right=1., left=0., hspace=0., wspace=0.)
+  for g,count in zip(gs,range(int(dim))):
     ax = plt.subplot(g)
     ax.imshow(model.weights[0][:-1,count].reshape((28,28)))
     ax.set_xticks([])
@@ -151,7 +155,7 @@ def plot_err(model, save_name):
 
 # ## Gradient Check
 
-# In[7]:
+# In[ ]:
 
 def gradient_check(model, X, gt, ep = 0.0001):
   ## Estimate the gradients using first principles
@@ -183,7 +187,7 @@ def gradient_check(model, X, gt, ep = 0.0001):
   pdb.set_trace()
 
 
-# In[8]:
+# In[ ]:
 
 ## gradient check
 def grad_check(model):
@@ -193,7 +197,7 @@ def grad_check(model):
 
 # ## Saving and loading the model
 
-# In[9]:
+# In[ ]:
 
 def save_model(model, filename):
   fl = open(filename,'wb')
@@ -207,7 +211,7 @@ def load_model(filename):
 # ## Loss History Class
 # 
 
-# In[10]:
+# In[ ]:
 
 class history(object):
   def __init__(self):
@@ -230,7 +234,7 @@ class history(object):
 # graph ends with softmax and crossentropy loss
 # ```
 
-# In[11]:
+# In[ ]:
 
 class NN(object):
   def __init__(self,graph):
@@ -366,7 +370,7 @@ class NN(object):
       self.weights[k] = self.weights[k] + self.v[k]
 
 
-# In[12]:
+# In[ ]:
 
 def sgd_train(args):
   ## Random Seed
@@ -378,8 +382,18 @@ def sgd_train(args):
   lr = args.lr
   mm = args.mm 
   optimal_limit = False
-  save_name = "%s_lr%.3f_mm%.3f_lam%.3f_dropout%.1f" %(args.save_dir,args.lr,args.mm,args.lam,args.prob)
+  
+  ## automatic unique name creation
+  save_name = "%s_lr%.3f_mm%.3f_lam%.3f_dropout%.1f_" %(args.save_dir,args.lr,args.mm,args.lam,args.prob)
+  graph_name_temp = [str(args.graph[0])]
+  for num_layers in range(1,len(args.graph)):
+    graph_name_temp.append("_%d" %args.graph[num_layers])
+  graph_name = ''
+  for i in range(len(graph_name_temp)):
+    graph_name+=graph_name_temp[i]
+  save_name += graph_name
   save_name = os.path.join(args.save_dir,save_name)
+  
   for i in tqdm(range(args.num_epochs)):
     for j in range(train.shape[0]):
       model.grad_descent(train[j], train_gt[j], lr=lr, mm=mm, prob=prob, lam=lam, optimal_limit=optimal_limit)
@@ -413,7 +427,7 @@ def sgd_train(args):
   vis(model, save_name)
 
 
-# In[13]:
+# In[ ]:
 
 def main():
     parser = argparse.ArgumentParser()
@@ -443,7 +457,8 @@ def main():
     sgd_train(args)
 
 
-# In[14]:
+# In[ ]:
+
 
 if __name__=="__main__":
   main()
@@ -451,7 +466,7 @@ if __name__=="__main__":
 
 # ## Depreciated
 
-# In[15]:
+# In[ ]:
 
 ## Depreciated
 def batch_train():
