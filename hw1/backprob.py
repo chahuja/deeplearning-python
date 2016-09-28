@@ -95,7 +95,7 @@ def relu(value):
   else:
     return value
 
-def dropout_mask(prob, dim):
+def dropout_mask_forward(prob, dim):
   if (prob>1 or prob<0):
     raise Exception("Probability has to be between 0 and 1")
 
@@ -103,11 +103,16 @@ def dropout_mask(prob, dim):
   ## while in the backward pass, the mask has value 1 for "prob" fraction of the elements
   forward_mask = np.matrix(np.ones((1,dim)) * prob * 1.0)
   forward_mask = np.concatenate((forward_mask, np.matrix([1])), axis=1)
+  return forward_mask
+
+def dropout_mask_backprob(prob, dim):
+  if (prob>1 or prob<0):
+    raise Exception("Probability has to be between 0 and 1")
   #backprob_mask = np.matrix([1 for _ in range(int(np.ceil(prob*dim)))]+ [0 for _ in range(int(dim - np.ceil(prob*dim)))])
-  backprob_mask = np.abs(np.ceil(np.random.uniform(size=(1,dim))-prob))
+  backprob_mask = np.abs(np.ceil(prob - np.random.uniform(size=(1,dim))))
   np.random.shuffle(backprob_mask.T) ## random placement of ones
   backprob_mask = np.concatenate((backprob_mask,np.matrix([1])), axis=1)
-  return forward_mask, backprob_mask
+  return backprob_mask
 
 def copy_list(a):
   return [a[i].copy() for i in range(len(a))]
@@ -294,7 +299,7 @@ class NN(object):
         break
       X = sigmoid(X) ## Non-Linear
       X = np.concatenate((X,np.ones_like(X[:,0])), axis = 1)
-      forward_mask, _ = dropout_mask(prob=prob, dim=X.shape[1]-1) ## subtract 1 due to the bias
+      forward_mask = dropout_mask_forward(prob=prob, dim=X.shape[1]-1) ## subtract 1 due to the bias
       X = np.multiply(X, forward_mask)
       
     # if the limit is anything apart the last layer, return the calculated values
@@ -332,7 +337,7 @@ class NN(object):
     for k in range(self.num_layers):
       ## Calculating the forward pass
       forward_pass = self.forward(X, k+1, True, prob=prob)
-      _, backprob_mask = dropout_mask(prob=prob, dim=forward_pass.shape[1]-1) ## subtract 1 due to the bias
+      backprob_mask = dropout_mask_backprob(prob=prob, dim=forward_pass.shape[1]-1) ## subtract 1 due to the bias
       #masked_input = forward_pass
       #backprob_mask = np.matrix(np.ones_like(forward_pass))
       masked_input = np.multiply(forward_pass,backprob_mask)
@@ -362,6 +367,8 @@ class NN(object):
 # In[ ]:
 
 def sgd_train(args):
+  ## Random Seed
+  np.random.seed(args.seed)
   model = NN(args.graph)
   # SGD
   prob = args.prob ## Dropout coeffiecient
@@ -417,6 +424,8 @@ def main():
                         help='momentum')
     parser.add_argument('--num_epochs', type=int, default=200, 
                         help='number of epochs')
+    parser.add_argument('--seed', type=int, default=212, 
+                        help='Random Seed')
     parser.add_argument('--early_stopping', type=bool, default=False,
                         help='If you want to perform early stopping')
     args = parser.parse_args()
@@ -427,7 +436,6 @@ def main():
     sgd_train(args)
 
 
-# In[ ]:
 if __name__=="__main__":
   main()
 
