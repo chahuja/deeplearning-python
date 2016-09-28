@@ -3,7 +3,7 @@
 
 # # BackProb in Multilayer Perceptron NN
 
-# In[ ]:
+# In[1]:
 
 import seaborn as sb
 import numpy as np
@@ -17,16 +17,17 @@ import sys
 import os
 
 
-# In[ ]:
+# In[2]:
 
 # Load Data
+np.random.RandomState(212)
 train = np.matrix(np.genfromtxt('digitstrain.txt', delimiter=','))
 np.random.shuffle(train) ## Shuffle to improve convergence
 test = np.matrix(np.genfromtxt('digitstest.txt', delimiter=','))
 val = np.matrix(np.genfromtxt('digitsvalid.txt', delimiter=','))
 
 
-# In[ ]:
+# In[3]:
 
 # Prepare data for training, validation and testing
 NUM_CLASSES = 10 ## hardcoded
@@ -46,7 +47,7 @@ val = val[:,:-1]
 
 # ## Plotting Image of a training input
 
-# In[ ]:
+# In[4]:
 
 # Plotting the image 
 ## The data is in row-major format
@@ -55,7 +56,7 @@ def plot_image(train):
 ## The image is squeezed row-wise
 
 
-# In[ ]:
+# In[5]:
 
 # Basic loss/activation functions and their gradients which are codenamed "inv"
 # These functions are defined with input as numpy.matrix format.
@@ -121,7 +122,7 @@ def copy_list(a):
 
 # ## Visualization
 
-# In[ ]:
+# In[6]:
 
 ## Visualizing filters
 def vis(model, save_name):
@@ -150,7 +151,7 @@ def plot_err(model, save_name):
 
 # ## Gradient Check
 
-# In[ ]:
+# In[7]:
 
 def gradient_check(model, X, gt, ep = 0.0001):
   ## Estimate the gradients using first principles
@@ -182,7 +183,7 @@ def gradient_check(model, X, gt, ep = 0.0001):
   pdb.set_trace()
 
 
-# In[ ]:
+# In[8]:
 
 ## gradient check
 def grad_check(model):
@@ -192,7 +193,7 @@ def grad_check(model):
 
 # ## Saving and loading the model
 
-# In[ ]:
+# In[9]:
 
 def save_model(model, filename):
   fl = open(filename,'wb')
@@ -206,7 +207,7 @@ def load_model(filename):
 # ## Loss History Class
 # 
 
-# In[ ]:
+# In[10]:
 
 class history(object):
   def __init__(self):
@@ -229,7 +230,7 @@ class history(object):
 # graph ends with softmax and crossentropy loss
 # ```
 
-# In[ ]:
+# In[11]:
 
 class NN(object):
   def __init__(self,graph):
@@ -238,6 +239,7 @@ class NN(object):
     self.weights_optimal = list() ## to store the optimal weights
     self.hist = history()
     self.v = list() ## momentum
+    self.stopping_count = 0
     
     prev_dim = -1
     for dim in self.graph:
@@ -364,11 +366,11 @@ class NN(object):
       self.weights[k] = self.weights[k] + self.v[k]
 
 
-# In[ ]:
+# In[12]:
 
 def sgd_train(args):
   ## Random Seed
-  np.random.seed(args.seed)
+  np.random.RandomState(args.seed)
   model = NN(args.graph)
   # SGD
   prob = args.prob ## Dropout coeffiecient
@@ -391,8 +393,13 @@ def sgd_train(args):
     try:
       if (model.hist.val_loss[-2] < model.hist.val_loss[-1]):
         optimal_limit = True
+        ## Run the training for some more epochs after overfitting starts
+        model.stopping_count+=1
+        if (model.stopping_count >=5 and args.early_stopping == True):
+          break
       else:
         optimal_limit = False
+        model.stopping_count = 0 ## Reset the stopping count
     except:
       pass
       
@@ -406,7 +413,7 @@ def sgd_train(args):
   vis(model, save_name)
 
 
-# In[ ]:
+# In[13]:
 
 def main():
     parser = argparse.ArgumentParser()
@@ -426,7 +433,7 @@ def main():
                         help='number of epochs')
     parser.add_argument('--seed', type=int, default=212, 
                         help='Random Seed')
-    parser.add_argument('--early_stopping', type=bool, default=False,
+    parser.add_argument('--early_stopping', type=bool, default=True,
                         help='If you want to perform early stopping')
     args = parser.parse_args()
     try:
@@ -436,13 +443,15 @@ def main():
     sgd_train(args)
 
 
+# In[14]:
+
 if __name__=="__main__":
   main()
 
 
 # ## Depreciated
 
-# In[ ]:
+# In[15]:
 
 ## Depreciated
 def batch_train():
