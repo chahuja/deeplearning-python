@@ -17,7 +17,6 @@ import sys
 import os
 
 
-
 # In[ ]:
 
 # Load Data
@@ -425,6 +424,10 @@ def sgd_train(args):
   plot_cce(model, save_name)
   plot_err(model, save_name)
   vis(model, save_name)
+  ## print test scores at the end
+  ## Print the test scores
+  test_pred = model.forward(test,activation=True, prob=args.prob)
+  print("test error: %f, %f") %(cross_entropy_loss(test_pred,test_gt),classification_error(test_pred,test_gt))
 
 
 # In[ ]:
@@ -456,9 +459,7 @@ def main():
       pass
     sgd_train(args)
 
-
 # In[ ]:
-
 
 if __name__=="__main__":
   main()
