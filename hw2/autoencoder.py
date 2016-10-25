@@ -1,15 +1,15 @@
 
 # coding: utf-8
 
-# # Pretrained Models in Multilayer Perceptron NN
+# # BackProb in Multilayer Perceptron NN
 
-# In[1]:
+# In[20]:
 
 import seaborn as sb
 import numpy as np
 import pdb
 import pickle as pkl
-import matplotlib
+import matplotlib 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -38,13 +38,23 @@ def cat_to_one_hot(vec):
   vec = vec.astype(int) ## changing type to int as these are indices for the one-hot vector
   return np.matrix(np.eye(NUM_CLASSES)[vec])
 
-train_gt = cat_to_one_hot(train[:,-1])
-test_gt = cat_to_one_hot(test[:,-1])
-val_gt = cat_to_one_hot(val[:,-1])
+#train_gt = cat_to_one_hot(train[:,-1])
+#test_gt = cat_to_one_hot(test[:,-1])
+#val_gt = cat_to_one_hot(val[:,-1])
 
-train = np.round(train[:,:-1])
-test = np.round(test[:,:-1])
-val = np.round(val[:,:-1])
+## Remove the classification outputs
+train = train[:,:-1]
+test = test[:,:-1]
+val = val[:,:-1]
+
+## Binarize the data
+train = np.round(train)
+test = np.round(test)
+val = np.round(val)
+
+train_gt = train
+test_gt = test
+val_gt = val
 
 
 # ## Plotting Image of a training input
@@ -65,7 +75,7 @@ def plot_image(train):
 # things may go haywire if numpy.array is used 
 # even though numpy.matrix inherits properties from numpy.array
 def cross_entropy_loss(vec, gt):
-  return -np.multiply(gt,np.log(vec)).sum()/vec.shape[0] ## take the average
+  return (-np.multiply(gt,np.log(vec))-np.multiply(1-gt,np.log(1-vec))).sum()/vec.shape[0] ## take the average
 
 def classification_error(vec,gt):
   #pdb.set_trace()
@@ -73,6 +83,9 @@ def classification_error(vec,gt):
   err = np.ceil((1.0*dif)/max(dif))
   relative_err = (1.0*err.sum())/len(err)
   return relative_err*100
+
+def mean_mse(vec,gt):
+  return np.sum(np.square(vec-gt))/vec.shape[0] ## average across number of examples
 
 def sigmoid(mat):
   return 1./(1+ np.exp(-mat))
@@ -91,6 +104,12 @@ def inv_softmax_with_loss(vec, gt):
     raise Exception("Prediction and Expected Values must have the same dimensions")
     
   return softmax(vec) - gt
+
+def inv_sigmoid_with_loss(vec,gt):
+  if (vec.shape != gt.shape):
+    raise Exception("Prediction and Expected Values must have the same dimensions")
+  
+  return sigmoid(vec) - gt
 
 def relu(value):
   if (value<=0):
@@ -143,7 +162,7 @@ def plot_cce(model, save_name):
   train_plt = plt.plot(range(len(model.hist.train_loss)),model.hist.train_loss, 'r--', label='Train')
   val_plt = plt.plot(range(len(model.hist.val_loss)),model.hist.val_loss, 'g-', label="Val")
   plt.xlabel('No. of Epochs')
-  plt.ylabel('mean(Entropy Loss)')
+  plt.ylabel('mean(Square Error Loss)')
   plt.savefig(save_name+'.png')
 
 def plot_err(model, save_name):  
@@ -218,14 +237,10 @@ class history(object):
   def __init__(self):
     self.train_loss = list()
     self.val_loss = list()
-    self.train_class_loss = list()
-    self.val_class_loss = list()
-
-  def add(self,train_loss, val_loss,train_class_loss,val_class_loss):
+    
+  def add(self,train_loss, val_loss):
     self.train_loss.append(train_loss)
     self.val_loss.append(val_loss)
-    self.train_class_loss.append(train_class_loss)
-    self.val_class_loss.append(val_class_loss)
 
 
 # ## Model class NN
@@ -238,7 +253,7 @@ class history(object):
 # In[11]:
 
 class NN(object):
-  def __init__(self,graph,state):
+  def __init__(self,graph):
     self.graph = graph
     self.weights = list()
     self.weights_optimal = list() ## to store the optimal weights
@@ -254,10 +269,13 @@ class NN(object):
           high = np.sqrt(6.0/(prev_dim + dim))
           low = -high
           # prev_dim + 1 to include a row for bias 
-          self.weights.append(state.uniform(low=low,high=high,size=(prev_dim+1,dim)))
+          self.weights.append(np.random.uniform(low=low,high=high,size=(prev_dim+1,dim)))
           ## momentum has the same dimension as the weight matrices
           self.v.append(np.matrix(np.zeros_like(self.weights[-1])))
         prev_dim = dim
+    
+    ## Tie the input and output weights
+    self.weights[1][0:-1,:] = self.weights[0][0:-1,:].T
     
     self.num_layers = len(self.weights)
     self.weights_optimal = copy_list(self.weights)
@@ -315,7 +333,7 @@ class NN(object):
     
     X = X*np.mat(self.weights[-1]) ## Linear
     if (activation == True):
-      return softmax(X) ## Non-Linear
+      return sigmoid(X) ## Non-Linear, as the reconstruction is continuous value based
     else: 
       return X
   
@@ -340,7 +358,10 @@ class NN(object):
     grad_A = list()
     
     ## initializing first gradient
-    grad_A.append(inv_softmax_with_loss(self.forward(X, prob=prob), gt))
+    x_cap = self.forward(X, prob=prob, activation=False)
+    ## MSE error
+    #grad_A.append(2*np.multiply((x_cap-gt),inv_sigmoid(x_cap)))
+    grad_A.append(inv_sigmoid_with_loss(x_cap,gt))
     for k in range(self.num_layers):
       ## Calculating the forward pass
       forward_pass = self.forward(X, k+1, True, prob=prob)
@@ -354,6 +375,7 @@ class NN(object):
       ## We do not need the bias layer to update the gradients so we do not keep it
       grad_H.append(self.weights[self.num_layers-k-1][:-1,:] * grad_A[k].T) 
       grad_A.append(np.multiply(grad_H[k].T,inv_sigmoid(self.forward(X,k+1, prob=prob))))
+      #pdb.set_trace()
 
     ## reverse the list of gradients as they were stored in the order of backprob
     self.grad_W.reverse()
@@ -369,24 +391,20 @@ class NN(object):
     for k in range(self.num_layers):
       self.v[k] = self.v[k] * mm - lr * self.grad_W[k]
       self.weights[k] = self.weights[k] + self.v[k]
+      
+    avg = (self.weights[0][:-1,:] + self.weights[1][:-1,:].T)/2
+    self.weights[0][:-1,:] = avg
+    self.weights[1][:-1,:] = avg.T
 
 
 # In[12]:
 
 def sgd_train(args):
   ## Random Seed
-  state = np.random.RandomState(args.seed)
-  model = NN(args.graph, state)
-  
-  ## load the first weight matrix -- Hardcoded #########################################
-  if (args.weight_file is not None):
-    print("Loading weights")
-    W = load_model(args.weight_file)
-    model.weights[0][:-1,:] = W[0].T
-    model.weights[0][-1,:] = W[1].T
-  ######################################################################################
-  
+  np.random.RandomState(args.seed)
+  model = NN(args.graph)
   # SGD
+  #pdb.set_trace()
   prob = args.prob ## Dropout coeffiecient
   lam = args.lam ## regularization coeffiecient
   lr = args.lr
@@ -404,15 +422,24 @@ def sgd_train(args):
   save_name += graph_name
   save_name = os.path.join(args.save_dir,save_name)
   
+  global train
+  ## applying noise to the input
+  if (args.denoising):
+    train = np.multiply(train,np.random.binomial(1,0.5,size=train.shape))
+  
+  #pdb.set_trace()
   for i in tqdm(range(args.num_epochs)):
     for j in range(train.shape[0]):
       model.grad_descent(train[j], train_gt[j], lr=lr, mm=mm, prob=prob, lam=lam, optimal_limit=optimal_limit)
     train_pred = model.forward(train,activation=True, prob=prob)
     val_pred = model.forward(val,activation=True, prob=prob)
-    train_class_loss = classification_error(train_pred,train_gt)
-    val_class_loss = classification_error(val_pred,val_gt)
-    model.hist.add(cross_entropy_loss(train_pred, train_gt),
-                  cross_entropy_loss(val_pred, val_gt), train_class_loss, val_class_loss)
+    #train_class_loss = classification_error(train_pred,train_gt)
+    #val_class_loss = classification_error(val_pred,val_gt)
+    train_err = cross_entropy_loss(train_pred,train_gt)
+    val_err = cross_entropy_loss(val_pred, val_gt)
+    print train_err, val_err
+    #pdb.set_trace()
+    model.hist.add(train_err, val_err)
     
     try:
       if (model.hist.val_loss[-2] < model.hist.val_loss[-1]):
@@ -427,18 +454,21 @@ def sgd_train(args):
     except:
       pass
       
-    print("train error: %f, %f") %(model.hist.train_loss[-1],model.hist.train_class_loss[-1])
-    print("val error: %f, %f") %(model.hist.val_loss[-1],model.hist.val_class_loss[-1])
+    #print("train error: %f, %f") %(model.hist.train_loss[-1],model.hist.train_class_loss[-1])
+    #print("val error: %f, %f") %(model.hist.val_loss[-1],model.hist.val_class_loss[-1])
     save_model(model,save_name+'.p')
+    save_model([model.weights[0][:-1,:].T,model.weights[0][-1,:].T], save_name+'weights.p')
     
   ## Error vs Epochs
   plot_cce(model, save_name)
-  plot_err(model, save_name)
+  #plot_err(model, save_name)
   vis(model, save_name)
   ## print test scores at the end
   ## Print the test scores
   test_pred = model.forward(test,activation=True, prob=args.prob)
-  print("test error: %f, %f") %(cross_entropy_loss(test_pred,test_gt),classification_error(test_pred,test_gt))
+  print("test error: %f") %(cross_entropy_loss(test_pred,test_gt))
+  
+  return model
 
 
 # In[13]:
@@ -447,7 +477,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--save_dir', type=str, default='save',
                         help='directory to store checkpointed models')
-    parser.add_argument('--graph', type=int ,nargs='+', default=[784,100,10],
+    parser.add_argument('--graph', type=int ,nargs='+', default=[784,100,784],
                         help='Structure of the NN') 
     parser.add_argument('--prob', type=float, default=1,
                         help='dropout coefficients')
@@ -463,23 +493,17 @@ def main():
                         help='Random Seed')
     parser.add_argument('--early_stopping', type=bool, default=True,
                         help='If you want to perform early stopping')
-    parser.add_argument('--weight_file', type=str, default=None,
-                        help='weight file')
+    parser.add_argument('--denoising', type=bool, default=False,
+                        help='If you want to train a denoising autoencoder')
     args = parser.parse_args()
     try:
       os.makedirs(args.save_dir)
     except:
       pass
-    sgd_train(args)
+    model = sgd_train(args)
+    return model
 
-
-# In[14]:
 
 if __name__=="__main__":
-  main()
-
-
-# In[ ]:
-
-
+  model = main()
 

@@ -3,7 +3,7 @@
 
 # # Contrastive divergence for RBM training
 
-# In[43]:
+# In[2]:
 
 import seaborn as sb
 import numpy as np
@@ -19,7 +19,7 @@ import sys
 import os
 
 
-# In[13]:
+# In[3]:
 
 ## Set random state to reproduce data
 rState = np.random.RandomState(212)
@@ -41,7 +41,7 @@ test = np.round(_test)
 val = np.round(_val)
 
 
-# In[14]:
+# In[4]:
 
 # Plotting the image 
 ## The data is in row-major format
@@ -50,7 +50,7 @@ def plot_image(train):
 ## The image is squeezed row-wise
 
 
-# In[15]:
+# In[5]:
 
 def softplus(X):
   return np.log(1+np.exp(X))
@@ -68,7 +68,7 @@ def copy_list(a):
 
 # # Visualization
 
-# In[16]:
+# In[6]:
 
 ## Visualizing filters
 def vis(W, save_name):
@@ -100,7 +100,7 @@ def plot_err(model, save_name):
 
 # # Saving and loading the model
 
-# In[17]:
+# In[7]:
 
 def save_model(model, filename):
   fl = open(filename,'wb')
@@ -117,7 +117,7 @@ def load_model(filename):
 
 # # Loss History Class
 
-# In[18]:
+# In[8]:
 
 class history(object):
   def __init__(self):
@@ -131,7 +131,7 @@ class history(object):
 
 # # Model Class RBM
 
-# In[33]:
+# In[9]:
 
 class RBM(object):
   def __init__(self,graph):
@@ -199,7 +199,7 @@ class RBM(object):
     self.c += lr*gradc
 
 
-# In[34]:
+# In[10]:
 
 def mean_cross_entropy_loss(model, X):
   x_gt = X.T
@@ -208,7 +208,7 @@ def mean_cross_entropy_loss(model, X):
   return l
 
 
-# In[35]:
+# In[11]:
 
 def sgd_train(args):
   ## automatically creating a savename
@@ -238,7 +238,18 @@ def sgd_train(args):
   return rbm
 
 
-# In[36]:
+# In[12]:
+
+def digit_generation(model, filename='temp'):
+  X = np.random.uniform(size=train[0:100].T.shape)
+  ## binarize the input
+  X = np.round(X)
+  print np.max(X), np.min(X)
+  X_cap = model.generation(X,1000)
+  vis(X_cap,filename+'_gen')
+
+
+# In[13]:
 
 def main():
   parser = argparse.ArgumentParser()
@@ -263,9 +274,17 @@ def main():
     os.makedirs(args.save_dir)
   except:
     pass
+  ## Train model
   model = sgd_train(args)
+  
+  ## (c) Sample from images
+  save_name = "%s_k%d_graph_%d" %(args.save_dir, args.num_mcmc,args.graph[1])
+  save_name = os.path.join(args.save_dir, save_name)
+  digit_generation(model, filename=save_name)
   return model
 
 
 if __name__=="__main__":
-  model = main()
+  main()
+
+
