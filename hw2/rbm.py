@@ -3,7 +3,7 @@
 
 # # Contrastive divergence for RBM training
 
-# In[28]:
+# In[43]:
 
 import seaborn as sb
 import numpy as np
@@ -19,8 +19,7 @@ import sys
 import os
 
 
-
-# In[29]:
+# In[13]:
 
 ## Set random state to reproduce data
 rState = np.random.RandomState(212)
@@ -42,7 +41,7 @@ test = np.round(_test)
 val = np.round(_val)
 
 
-# In[30]:
+# In[14]:
 
 # Plotting the image 
 ## The data is in row-major format
@@ -51,7 +50,7 @@ def plot_image(train):
 ## The image is squeezed row-wise
 
 
-# In[31]:
+# In[15]:
 
 def softplus(X):
   return np.log(1+np.exp(X))
@@ -60,22 +59,16 @@ def sigmoid(mat):
   return 1./(1+ np.exp(-mat))
 
 def cross_entropy_loss(vec, gt):
-  return -np.multiply(gt,np.log(vec)).sum()/vec.shape[1] ## take the average
+  ## take the average
+  return (-np.multiply(gt,np.log(vec)) - np.multiply(1-gt,np.log(1-vec))).sum()/vec.shape[1]
 
 def copy_list(a):
   return [a[i].copy() for i in range(len(a))]
 
 
-# In[32]:
-
-a = np.matrix([[1,2],[3,4]])
-b = np.matrix([[1,2],[3,4]])
-np.multiply(a,b)
-
-
 # # Visualization
 
-# In[33]:
+# In[16]:
 
 ## Visualizing filters
 def vis(W, save_name):
@@ -107,7 +100,7 @@ def plot_err(model, save_name):
 
 # # Saving and loading the model
 
-# In[34]:
+# In[17]:
 
 def save_model(model, filename):
   fl = open(filename,'wb')
@@ -124,7 +117,7 @@ def load_model(filename):
 
 # # Loss History Class
 
-# In[35]:
+# In[18]:
 
 class history(object):
   def __init__(self):
@@ -138,7 +131,7 @@ class history(object):
 
 # # Model Class RBM
 
-# In[36]:
+# In[33]:
 
 class RBM(object):
   def __init__(self,graph):
@@ -166,10 +159,7 @@ class RBM(object):
     return sigmoid(np.matmul(self.W.T, h) + self.c)
   
   def sample(self,P):
-    samples = np.zeros_like(P)
-    for index, p in np.ndenumerate(P):
-      samples[index] = rState.binomial(1,p)
-    return samples
+    return np.random.binomial(1,P,size=P.shape)
   
   ## MCMC chain to predict a {0,1} output
   def MCMC(self, x, k):
@@ -209,16 +199,16 @@ class RBM(object):
     self.c += lr*gradc
 
 
-# In[37]:
+# In[34]:
 
 def mean_cross_entropy_loss(model, X):
-  x_gt = model.sample(X.T)
-  x_cap = model.h_inv(model.sample(model.h(x_gt)))
+  x_gt = X.T
+  x_cap = model.h_inv(model.sample(model.h(model.sample(x_gt))))
   l = cross_entropy_loss(x_cap, x_gt)
   return l
 
 
-# In[38]:
+# In[35]:
 
 def sgd_train(args):
   ## automatically creating a savename
@@ -248,7 +238,7 @@ def sgd_train(args):
   return rbm
 
 
-# In[39]:
+# In[36]:
 
 def main():
   parser = argparse.ArgumentParser()
@@ -279,6 +269,3 @@ def main():
 
 if __name__=="__main__":
   model = main()
-
-
-
