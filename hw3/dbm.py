@@ -48,7 +48,7 @@ val = np.round(_val)
 def plot_image(train):
   plt.imshow(train[0].reshape((28,28)), cmap=plt.cm.gray)
 ## The image is squeezed row-wise
-plot_image(train)
+#plot_image(train)
 
 
 # In[4]:
@@ -211,7 +211,7 @@ class DBM(object):
     _x = self.sample(x)
     _x = _x.T
     _h2 = self.sample(rState.uniform(low=0,high=1,size=(x.shape[1],self.graph[2])))
-    pdb.set_trace()
+    #pdb.set_trace()
     for i in tqdm(range(k)):
       _h1 = self.sample(self.h1_v_h2(_x,_h2))
       _h2 = self.sample(self.h2_h1(_h1))

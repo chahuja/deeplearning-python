@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#python dbm.py --save_dir a1 --graph 784 100 100 --batch 100 --chains 100 --num_epochs 1000 --num_mcmc 1 --seed 100
+python dbm.py --save_dir a1 --graph 784 100 100 --batch 100 --chains 100 --num_epochs 1000 --num_mcmc 1 --seed 100
 
 python dbm.py --save_dir a2 --graph 784 100 100 --batch 100 --chains 100 --num_epochs 1000 --num_mcmc 1 --seed 200
 
